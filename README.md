@@ -19,4 +19,4 @@ Automatic slideshow of e621.net created by <b>Leithey</b>
 - Quick source button for images
 - Go back in History for the current session
 - Pause/Unpause
-- Mobile and Desktop supported
+- Mobile and Desktop support

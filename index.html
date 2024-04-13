@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>e621 AutoViewer</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            background-color: black; /* Set background color to black */
+        }
+        #background {
+            position:fixed;
+            width: 100%;
+            height: 100%;
+        }
+        #mainImage {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: contain; /* Use contain to fit the image within the container without cropping */
+            display: none;
+        }
+        #agePrompt {
+            position: absolute; /* Position the age prompt dialog */
+            top: 50%; /* Center vertically */
+            left: 50%; /* Center horizontally */
+            transform: translate(-50%, -50%); /* Center the dialog */
+            background-color: rgba(255, 255, 255, 0.8); /* Semi-transparent background */
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.3); /* Add a shadow for depth */
+            z-index: 9999; /* Ensure the dialog appears above other content */
+            display: none; /* Hide the dialog initially */
+        }
+        #pauseIcon {
+            position: absolute;
+            right: 20px;
+            bottom: 20px;
+            width: 20px; /* Set the width */
+            height: 20px; /* Set the height */
+            display: none;
+            z-index: 100;
+        }
+        #loading {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: #fff;
+            font-size:larger;
+            z-index: 100; /* Ensure the loading message appears above other content */
+            display: none; /* Hide the loading message initially */
+        }
+        #loadingtop {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: #fff;
+            font-size:larger;
+            z-index: 100; /* Ensure the loading message appears above other content */
+            display: none; /* Hide the loading message initially */
+        }
+        #bottomCenterButtons {
+            position:fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            justify-content: space-between;
+            flex-direction: row;
+            width: 200px;
+            z-index: 100;
+        }
+        #sourceButton,
+        #downloadButton {
+            background-size: cover;
+            background-color: rgba(0, 0, 0, 0.142);
+            border: none;
+            cursor: pointer;
+            display: none;
+            z-index: 100;
+            font-size: 20px;
+            color: white;
+            border-radius:5px;
+        }
+        #settingsButtonDiv{
+            position:fixed;
+            bottom: 20px;
+            left: 20px;
+            width: 20px;
+            height: 20px;
+            padding: 3px;
+            background-color: rgba(0, 0, 0, 0.142);
+            border-radius: 10px;
+            z-index: 100;
+            display: none;
+        }
+        #settingsButton {
+            width: 100%;
+            height: 100%;
+            background-image: url('assets/settings.png');
+            background-size: cover;
+            background-color: transparent;
+            border: none;
+            cursor: pointer;
+        }
+        .buttonBackground {
+            display: inline-block;
+            padding: 10px;
+            background-color: rgba(0, 0, 0, 0.142);
+            border-radius: 10px;
+        }
+
+        .row {
+            display: flex;
+            flex-direction: row;
+            flex: 1;
+        }
+        .column {
+            display: flex;
+            flex-direction: column;
+            flex: 1;
+            width: 10px; /*why do I need to add this for the column to scale properly? wtf*/
+        }
+        
+
+        /*********************************** SETTINGS /***********************************/
+        .settingsPanel {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.3);
+            z-index: 1000;
+            display: none;
+            width: 50%;
+            height: 50%;
+            flex-direction: column;
+            flex: 1;
+            overflow:auto;
+        }
+        .settingsPanel h3 {
+            margin-top: 0;
+            margin-bottom: 1px;
+        }
+        .settingsPanel label {
+            display: block;
+            text-wrap: nowrap;
+        }
+        .settingsPanel input {
+            flex-grow: 1;
+            min-width: 100px;
+            max-width: auto;
+        }
+
+        /*********************************** PRESETS /***********************************/
+        #presetList {
+            flex-grow: 1;
+            overflow: auto;
+        }
+        #presetList .presetItem {
+            padding: 5px;
+            border-bottom: 1px solid #ccc;
+            cursor: pointer;
+        }
+        #presetList .presetItem:hover {
+            background-color: hsl(0, 0%, 85%);
+        }
+
+        .selected {
+            background-color: hsl(0, 0%, 90%); /* Change to your desired background color */
+        }
+
+        .tooltip {
+            display: flex;
+            position: relative;
+            z-index: 9999;
+        }
+
+        .tooltip:hover .tooltiptext {
+            visibility: visible;
+            opacity: 1;
+        }
+
+        .tooltip .tooltiptext {
+            visibility: hidden;
+            max-width: 100%;
+            background-color: #555;
+            color: #fff;
+            text-align: center;
+            border-radius: 6px;
+            padding: 5px;
+            position: absolute;
+            bottom: 125%;
+            left: 50%;
+            margin-left: -60px;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+
+        .buttontransparent {
+            background-color: transparent;
+            border: none;
+        }
+        .buttontransparent.selected {
+            background-color: hsl(0, 0%, 90%);
+        }
+        .buttontransparent:hover {
+            background-color: #d8d8d8;
+        }
+
+        #creditsPanel h3 {
+            margin-top: 10px; /* Remove top margin */
+            margin-bottom: 0px; /* Add bottom margin for separation */
+        }
+        #creditsPanel p {
+            margin-top: 0px; /* Remove top margin */
+            margin-bottom: 10px; /* Add bottom margin for separation */
+        }
+        #creditsPanel ul,
+        #creditsPanel h4 {
+            margin-top: 0; /* Remove top margin */
+            margin-bottom: 10px; /* Add bottom margin for separation */
+        }
+
+    </style>
+</head>
+<body>
+    <div id="background">
+        <!-- Age prompt dialog -->
+        <div id="agePrompt">
+            <p><b>Are you 18 or older?</b></p>
+            <div style="display: flex; justify-content: space-around;">
+                <button id="yesButton">Yes</button>
+                <button id="noButton">No</button>
+            </div>
+        </div>
+
+        <!-- Overlay Buttons -->
+        <img id="pauseIcon" src="assets/pause.png" alt="Pause Icon">
+        <div id="settingsButtonDiv">
+            <button id="settingsButton"></button>
+        </div>
+        <div id="bottomCenterButtons">
+            <button id="sourceButton">Source</button>
+            <button id="downloadButton">Download</button>
+        </div>
+
+
+
+        <div id="loading">Loading...</div>
+        <div id="loadingtop">Loading...</div>
+
+        <img id="mainImage" src="" alt="mainImage">
+
+        <div id="settingsPanel" class="settingsPanel">
+            <div class="row" style="flex: none; padding-bottom: 5px;">
+                <button id="creditsbutton" class="buttontransparent" style="flex:1;">Info</button>
+                <button id="globalsettingsbutton" class="buttontransparent" style="flex:1;">Global Settings</button>
+                <button id="presetsettingsbutton" class="buttontransparent" style="flex:1;">Preset Settings</button>
+                <div style="padding-left: 10px;">
+                    <button id="closesettingsbutton">X</button>
+                </div>
+            </div>
+
+            <div id="globalsettingspanel" class="row">
+                <div id="globalsettingscolumn" class="column" style="margin-left: 10px;">
+                    <div style="text-align: center;">
+                        <h3>Global Settings</h3>
+                    </div>
+                    <div class="tooltip" style="display: flex; margin-bottom: 5px;">
+                        <label for="username">Username:&nbsp;</label>
+                        <input type="text" id="username">
+                        <span class="tooltiptext">e621 Username (Not required, but needed to disable the e621 global blacklist for users without an account)</span>
+                    </div>
+                    <div class="tooltip" style="display: flex; margin-bottom: 5px;">
+                        <label for="apikey">API Key:&nbsp;</label>
+                        <input type="text" id="apikey">
+                        <span class="tooltiptext">API Key (Not required, but needed to disable the e621 global blacklist for users without an account. Found on e621 in Account > My profile)</span>
+                    </div>
+                    <div class="tooltip" style="display: flex; margin-bottom: 5px;">
+                        <label for="globaltags">Search Tags:&nbsp;</label>
+                        <input type="text" id="globaltags">
+                        <span class="tooltiptext">The tags forwarded to e621. Normal e621 tag rules possible (Negative tags, etc). Seperate with space bars</span>
+                    </div>
+                    <div class="tooltip" style="display: flex; margin-bottom: 5px;">
+                        <label for="globalblacklist">Blacklist:&nbsp;</label>
+                        <input type="text" id="globalblacklist">
+                        <span class="tooltiptext">If just one image tag matches one of the blacklist tags, the image is rejected. Seperate with space bars</span>
+                    </div>
+                    <div class="tooltip" style="display: flex; margin-bottom: 5px;">
+                        <label for="globalwhitelist">Whitelist:&nbsp;</label>
+                        <input type="text" id="globalwhitelist">
+                        <span class="tooltiptext">Only if all whitelist tags are found in the image tags, the image is accepted. Seperate with space bars</span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; margin-top: auto;">
+                        <button id="saveGlobalSettings">Save</button>
+                    </div>
+                </div>
+            </div>
+            <div id="presetsettingspanel" class="row" style="display:none; overflow: auto">
+                <div id="presetscolumn" class="column" style="flex: 0 0 110px;">
+                    <div style="text-align: center;">
+                        <h3>Presets</h3>
+                    </div>
+                    <div style="display: flex; justify-content: space-between;">
+                        <button id="addPresetBtn">+</button>
+                        <button id="resetPresetsBtn">Reset</button>
+                    </div>
+                    <div id="presetList">
+                        <!-- Preset items will be dynamically added here -->
+                    </div>
+                </div>
+                <div id="settingscolumn" class="column" style="margin-left: 10px;">
+                    <div style="text-align: center;">
+                        <h3>Settings</h3>
+                    </div>
+                    <div style="display: flex; margin-bottom: 15px;">
+                        <label for="presetName">Preset Name:&nbsp;</label>
+                        <input type="text" id="presetName" style="max-width: 100px;">
+                    </div>
+                    <div  class="tooltip" style="display: flex; margin-bottom: 5px;">
+                        <label for="refreshRate">Refresh Rate:&nbsp;</label>
+                        <input type="number" id="refreshRate" style="flex-grow: 0; min-width: 60px; width: 60px; max-width:60px; margin-right: 5px;" min="100">ms
+                        <span class="tooltiptext">How many miliseconds after an image was displayed before displaying the next image</span>
+                    </div>
+                    <div class="tooltip" style="display: flex; margin-bottom: 5px;">
+                        <label for="tags">Search Tags:&nbsp;</label>
+                        <input type="text" id="tags">
+                        <span class="tooltiptext">The tags forwarded to e621. Normal e621 tag rules possible (Negative tags, etc). Seperate with space bars</span>
+                    </div>
+                    <div class="tooltip" style="display: flex; margin-bottom: 5px;">
+                        <label for="blacklist">Blacklist:&nbsp;</label>
+                        <input type="text" id="blacklist">
+                        <span class="tooltiptext">If just one image tag matches one of the blacklist tags, the image is rejected. Seperate with space bars</span>
+                    </div>
+                    <div class="tooltip" style="display: flex; margin-bottom: 5px;">
+                        <label for="whitelist">Whitelist:&nbsp;</label>
+                        <input type="text" id="whitelist">
+                        <span class="tooltiptext">Only if all whitelist tags are found in the image tags, the image is accepted. Seperate with space bars</span>
+                    </div>
+                    <div class="tooltip" style="display: flex; margin-bottom: 5px;">
+                        <label for="adultcontent">Adult Content:&nbsp;</label>
+                        <input type="checkbox" id="adultcontent">
+                        <span class="tooltiptext">If unchecked, only SFW content is displayed</span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; margin-top: auto;">
+                        <button id="savePreset">Save</button>
+                        <button id="deletePreset">Delete</button>
+                    </div>
+                </div>
+            </div>
+            <div id="creditsPanel" class="row" style="display:none; overflow: auto; flex-direction: column;">
+                <h3>e621AutoViewer created by: <b>Leithey</b></h3>
+                <p>Contact: <a href="mailto:creations@leithey.com">creations@leithey.com</a></p>
+                <h4>Controls:</h4>
+                <ul>
+                    <li>Swipe Left or Left Arrow Key: Go back in History</li>
+                    <li>Swipe Right or Right Arrow Key: Go forward in History or force load new Image</li>
+                    <li>Tap or Left Mouse Click or Spacebar: Pause/Unpause</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
+
+<template id="presetsettingspanel">
+
+</template>

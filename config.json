@@ -1,0 +1,40 @@
+{
+    "url_e621": "https://e621.net",
+    "url_e926": "https://e926.net",
+    "use_whitelist": 0,
+    "refresh_rate": 10000,
+    "retry_rate": 100,
+    "download_rate_mb": 1,
+    "max_filesize_mb": 30,
+    "max_foldersize_mb": 1000,
+    "taglist": "order:random score:>100 -humanoid_penis tapering_penis",
+    "whitelist_tags": [
+        [
+            "male",
+            "solo"
+        ],
+        [
+            "female",
+            "solo"
+        ]
+    ],
+    "allowed_filetypes": [
+        ".jpg",
+        ".png",
+        ".gif"
+    ],
+    "global_tags": [
+        ""
+    ],
+    "global_blacklist": [
+        "scat",
+        "fart",
+        "amputee",
+        "blood",
+        "watersports",
+        "diaper"
+    ],
+    "global_whitelist": [
+        ""
+    ]
+}

@@ -20,3 +20,8 @@ Automatic slideshow of e621.net created by <b>Leithey</b>
 - Go back in History for the current session
 - Pause/Unpause
 - Mobile and Desktop support
+
+##### Notes
+Videos (.mp4) not yet supported. <br>
+Default Global Blacklist and Default Presets include tags of my own choice. Make sure to clear the Global Settings if you want a pure experience or one more to your own preference.<br>
+More features to come in the future.

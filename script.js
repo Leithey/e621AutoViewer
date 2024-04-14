@@ -3,6 +3,7 @@
 // Make the save/delete buttons always visible and not scale with the rest
 // credit to keru: Favorite images to e621 or locally?
 // credit to keru: zoom in somehow, like scrollwheel and pan
+// Video Support
 
 let adultMode = false;
 
@@ -117,8 +118,9 @@ async function imageLoop(skipNewSearch = false){
 
 //Get the image url of a new image with the matching criteria
 async function getNewImageUrl(){
-    let tags = globalSettings.globaltags.split(" ");
-    tags = tags.concat(presetSettings.tags.split(" "));
+    let tags = globalSettings.globaltags.split(" "); //split the global tags into an array
+    tags = tags.concat(presetSettings.tags.split(" ")) //add the preset tags to the global tags
+    tags = tags.filter(tag => tag.trim() !== ""); //remove empty elements in the tags array
     const params = {
         "tags": tags,
         "limit": 10
@@ -127,7 +129,7 @@ async function getNewImageUrl(){
     const queryParams = Object.entries(params)
     .map(([key, value]) => {
         if (key === "tags" && Array.isArray(value)) {
-            return `${key}=${value.join(' ')}`; // Join tags with spaces
+            return `${key}=${value.join('%20')}`; // Join tags with spaces
         } else {
             return `${key}=${encodeURIComponent(value)}`;
         }
@@ -140,19 +142,19 @@ async function getNewImageUrl(){
         url = `${config.url_e926}/posts.json/?${queryParams}`;
     }
 
-    let headerParams = {
-        "User-Agent": 'e621AutoViewer (by Leithey)',
-    }
+    let headerParams = {}
+    const client = '_client=e621AutoViewer%20(by%20Leithey)';
 
     if (globalSettings.username.length > 0 && globalSettings.apikey.length > 0) {
         headerParams.Authorization = `Basic ` + btoa(`${globalSettings.username}:${globalSettings.apikey}`);
     }
 
     try {
-        const response = await fetch(url, {headers: headerParams});
+        const response = await fetch(url+`&${client}`, {headers: headerParams});
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
         }
+        console.log(url+`&${client}`);
         const postData = await response.json();
 
         let fileUrl;
@@ -526,7 +528,6 @@ function openPresetSettings(){
 
 creditsButton.addEventListener('click', openCredits);
 function openCredits(){
-    console.log("test");
     globalsettingsPanel.style.display = "none";
     presetSettingsPanel.style.display = "none";
     creditsPanel.style.display = "flex";

@@ -122,19 +122,13 @@ async function getNewImageUrl(){
     tags = tags.concat(presetSettings.tags.split(" ")) //add the preset tags to the global tags
     tags = tags.filter(tag => tag.trim() !== ""); //remove empty elements in the tags array
     const params = {
-        "tags": tags,
-        "limit": 10
+        "tags": tags.join(' '),
+        "limit": 10,
+        "client": '_client=e621AutoViewer (by Leithey)'
     }
 
-    const queryParams = Object.entries(params)
-    .map(([key, value]) => {
-        if (key === "tags" && Array.isArray(value)) {
-            return `${key}=${value.join('%20')}`; // Join tags with spaces
-        } else {
-            return `${key}=${encodeURIComponent(value)}`;
-        }
-    })
-    .join('&');
+    const queryParams = new URLSearchParams(params).toString();
+
     let url = "";
     if (adultMode && presetSettings.adultcontent) {
         url = `${config.url_e621}/posts.json/?${queryParams}`;
@@ -143,18 +137,17 @@ async function getNewImageUrl(){
     }
 
     let headerParams = {}
-    const client = '_client=e621AutoViewer%20(by%20Leithey)';
 
     if (globalSettings.username.length > 0 && globalSettings.apikey.length > 0) {
         headerParams.Authorization = `Basic ` + btoa(`${globalSettings.username}:${globalSettings.apikey}`);
     }
 
     try {
-        const response = await fetch(url+`&${client}`, {headers: headerParams});
+        const response = await fetch(url, {headers: headerParams});
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
         }
-        console.log(url+`&${client}`);
+        console.log(url);
         const postData = await response.json();
 
         let fileUrl;

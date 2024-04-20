@@ -66,6 +66,17 @@
             z-index: 100; /* Ensure the loading message appears above other content */
             display: none; /* Hide the loading message initially */
         }
+        #noimages {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: #fff;
+            font-size:larger;
+            z-index: 100; /* Ensure the loading message appears above other content */
+            display: none; /* Hide the loading message initially */
+            text-align: center;
+        }
         #bottomCenterButtons {
             position:fixed;
             bottom: 20px;
@@ -259,6 +270,10 @@
 
         <div id="loading">Loading...</div>
         <div id="loadingtop">Loading...</div>
+        <div id="noimages">
+            No images found! <br> 
+            Try other search tags...
+        </div>
 
         <img id="mainImage" src="" alt="mainImage">
 

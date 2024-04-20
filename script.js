@@ -41,6 +41,7 @@ const globalsettingsPanel = document.getElementById("globalsettingspanel");
 const creditsPanel = document.getElementById('creditsPanel');
 const usernameInput = document.getElementById('username');
 const apiKeyInput = document.getElementById('apikey');
+const noImagesFound = document.getElementById('noimages');
 
 ///////////////////////////////////////////////////////////////INITIALIZATION/////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -150,6 +151,13 @@ async function getNewImageUrl(){
         console.log(url);
         const postData = await response.json();
 
+        if (postData.posts.length <= 0) {
+            showNoImagesError();
+            throw new Error("noImages");
+        } else {
+            noImagesFound.style.display = 'none';
+        }
+
         let fileUrl;
         let fileId;
         let post;
@@ -187,7 +195,12 @@ async function getNewImageUrl(){
         }
     } catch (error) {
         if (error.message !== "paused") {
-            console.error("Error:", error);
+            if (error.message === "noImages") {
+                
+            } else {
+                console.error("Error:", error);
+            }
+            
         }
         return null;
     }
@@ -687,6 +700,18 @@ function hideLoading(){
     mainImage.style.display = "block";
     loading.style.display = 'none';
     loadingtop.style.display = 'none';
+}
+
+function showNoImagesError(){
+    hideLoading();
+    console.log(`No images found.`);
+    noImagesFound.style.display = 'block';
+    mainImage.style.display = "none";
+}
+
+function hideNoImagesError(){
+    noImagesFound.style.display = 'none';
+    mainImage.style.display = "block";
 }
 
 downloadButton.addEventListener('click', () => {downloadImage();})

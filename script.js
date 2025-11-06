@@ -32,6 +32,7 @@ const loading = document.getElementById('loading');
 const loadingtop = document.getElementById('loadingtop');
 const sourceButton = document.getElementById('sourceButton');
 const downloadButton = document.getElementById('downloadButton');
+const favoriteButton = document.getElementById('favoriteButton');
 const globalSettingsButton = document.getElementById('globalsettingsbutton');
 const globalPresetsButton = document.getElementById('presetsettingsbutton');
 const creditsButton = document.getElementById('creditsbutton');
@@ -132,7 +133,7 @@ async function getNewImageUrl(){
 
     let url = "";
     if (adultMode && presetSettings.adultcontent) {
-        url = `${config.url_e621}/posts.json/?${queryParams}`;
+        url = `${config.url_e621}/posts.json/?${queryParams}`
     } else {
         url = `${config.url_e926}/posts.json/?${queryParams}`;
     }
@@ -204,6 +205,36 @@ async function getNewImageUrl(){
         }
         return null;
     }
+}
+
+//Add the current image to favorites, if auth is supplied
+async function addFavorite(){
+    const params = {
+        "post_id": getCurrentId(),
+    }
+
+    const queryParams = new URLSearchParams(params).toString();
+
+    let url = "";
+    if (adultMode && presetSettings.adultcontent) {
+        url = `${config.url_e621}/favorites.json/?${queryParams}`;
+    } else {
+        url = `${config.url_e926}/favorites.json/?${queryParams}`;
+    }
+
+    let headerParams = {}
+
+    if (globalSettings.username.length > 0 && globalSettings.apikey.length > 0) {
+        headerParams.Authorization = `Basic ` + btoa(`${globalSettings.username}:${globalSettings.apikey}`);
+    }
+    else {
+        return;
+    }
+
+    await fetch(url, {
+        method: 'POST',
+        headers: headerParams
+    });
 }
 
 ////////////////////////////////////////////////////////////////////AGE CHECK/////////////////////////////////////////////////////////////////////////////
@@ -329,6 +360,7 @@ document.addEventListener('mousemove', () => {
     if (firstImageLoaded) {
         sourceButton.style.display = 'block';
         downloadButton.style.display = 'block';
+        favoriteButton.style.display = 'block';
     }
     clearTimeout(hideTimeout); // Clear the timeout if settings button is visible
     
@@ -344,6 +376,7 @@ function mouseStoppedMoving() {
         settingsButton.style.display = 'none';
         sourceButton.style.display = 'none';
         downloadButton.style.display = 'none';
+        favoriteButton.style.display = 'none';
         hideCursor();
     }
 }
@@ -772,6 +805,10 @@ sourceButton.addEventListener('click', () => {
 function openSource() {
     window.open(getCurrentSourceURL());
 }
+
+favoriteButton.addEventListener('click', () => {
+    addFavorite();
+});
 
 globalSettingsButton.addEventListener('click', openGlobalSettings);
 function openGlobalSettings(){

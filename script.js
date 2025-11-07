@@ -10,7 +10,7 @@ let adultMode = false;
 let config;
 let timeoutId;
 let paused = false;
-let urlHistory = []; //Array in Array. Element 0 is the direct fileName, Element 1 is the fileId
+let urlHistory = []; //Array in Array. Element 0 is the direct fileName, Element 1 is the fileId, Element 2 is the favorited status
 let currentHistoryPos = 0;
 let pageIsHidden;
 let hideTimeout;
@@ -23,6 +23,7 @@ let presetsData = [];
 let globalSettings;
 let selectedPreset = 0;
 let presetSettings;
+let showFavButton = false;
 
 const settingsButton = document.getElementById('settingsButtonDiv');
 const mainImage = document.getElementById("mainImage");
@@ -33,6 +34,7 @@ const loadingtop = document.getElementById('loadingtop');
 const sourceButton = document.getElementById('sourceButton');
 const downloadButton = document.getElementById('downloadButton');
 const favoriteButton = document.getElementById('favoriteButton');
+const bottomCenterButtons = document.getElementById('bottomCenterButtons');
 const globalSettingsButton = document.getElementById('globalsettingsbutton');
 const globalPresetsButton = document.getElementById('presetsettingsbutton');
 const creditsButton = document.getElementById('creditsbutton');
@@ -102,7 +104,7 @@ async function imageLoop(skipNewSearch = false){
                 // after the new image finished loading, only show it if not paused (as could happen during download)
                 if (!paused && !pageIsHidden) {
                     // Update the main image element
-                    document.getElementById('mainImage').src = imageUrl;
+                    displayImageAtHistoryPos(urlHistory.length - 1);
                     currentHistoryPos = 0;
                     firstImageLoaded = true;
                     hideLoading();
@@ -140,7 +142,7 @@ async function getNewImageUrl(){
 
     let headerParams = {}
 
-    if (globalSettings.username.length > 0 && globalSettings.apikey.length > 0) {
+    if (isUsingAuth()) {
         headerParams.Authorization = `Basic ` + btoa(`${globalSettings.username}:${globalSettings.apikey}`);
     }
 
@@ -161,6 +163,7 @@ async function getNewImageUrl(){
 
         let fileUrl;
         let fileId;
+        let isFavorited;
         let post;
 
         for (let i = 0; i < postData.posts.length; i++) {
@@ -178,6 +181,7 @@ async function getNewImageUrl(){
             } else if (isWhitelisted(post)){
                 fileUrl = post.file.url;
                 fileId = post.id;
+                isFavorited = post.is_favorited;
                 break;
             } else {
                 continue;
@@ -190,7 +194,8 @@ async function getNewImageUrl(){
             return getNewImageUrl(); //no fitting image found, redo the search
         } else {
             console.log("New Image Found!", "Score:", post.score.total, "URL:\n" + fileUrl, "ID:\n" + fileId);
-            urlHistory.push([fileUrl, fileId]);
+
+            urlHistory.push([fileUrl, fileId, isFavorited]);
             currentHistoryPos--;
             return fileUrl;
         }
@@ -209,6 +214,14 @@ async function getNewImageUrl(){
 
 //Add the current image to favorites, if auth is supplied
 async function addFavorite(){
+    let headerParams = {}
+    if(isUsingAuth())
+    {
+        headerParams.Authorization = `Basic ` + btoa(`${globalSettings.username}:${globalSettings.apikey}`);
+    } else {
+        return;
+    }
+
     const params = {
         "post_id": getCurrentId(),
     }
@@ -222,19 +235,35 @@ async function addFavorite(){
         url = `${config.url_e926}/favorites.json/?${queryParams}`;
     }
 
-    let headerParams = {}
-
-    if (globalSettings.username.length > 0 && globalSettings.apikey.length > 0) {
-        headerParams.Authorization = `Basic ` + btoa(`${globalSettings.username}:${globalSettings.apikey}`);
-    }
-    else {
-        return;
-    }
-
-    await fetch(url, {
+    // Send favorite request
+    const response = await fetch(url, {
         method: 'POST',
         headers: headerParams
     });
+
+    // Favoriting worked
+    if(response.ok){
+        const postData = await response.json();
+        if(getCurrentId() === postData.post_id){
+            // Update the current image's status
+            updateFavButton(true);
+            urlHistory[getHistoryPosInArray()][2] = true;
+        } else {
+            // Find the image for which the status was set
+            for(var i = 0; i <= urlHistory.length; i++) {
+                if(urlHistory[i][1] === postData.post_id) {
+                    urlHistory[i][2] = true;
+                    return;
+                }
+            }
+        }
+    }
+}
+
+//Sets the current image to that of the given urlHistory position
+function displayImageAtHistoryPos(pos){
+    document.getElementById('mainImage').src = urlHistory[pos][0];
+    updateFavButton(urlHistory[pos][2]);
 }
 
 ////////////////////////////////////////////////////////////////////AGE CHECK/////////////////////////////////////////////////////////////////////////////
@@ -360,7 +389,9 @@ document.addEventListener('mousemove', () => {
     if (firstImageLoaded) {
         sourceButton.style.display = 'block';
         downloadButton.style.display = 'block';
-        favoriteButton.style.display = 'block';
+        if(showFavButton){
+            favoriteButton.style.display = 'block';
+        }
     }
     clearTimeout(hideTimeout); // Clear the timeout if settings button is visible
     
@@ -654,6 +685,16 @@ function isFiletypeAllowed(postData){
     }
 }
 
+//check if user has provided auth credentials
+function isUsingAuth(){
+    return globalSettings.username.length > 0 && globalSettings.apikey.length > 0;
+}
+
+//sets the UI to reflect a favorite state
+function updateFavButton(isFavorited) {
+    favoriteButton.textContent = isFavorited ? "★" : "☆"
+}
+
 //Toggles the pause state
 async function togglePause() {
     // Get the pause icon element
@@ -693,7 +734,7 @@ async function previousImage()
         currentHistoryPos--;
         const pos = getHistoryPosInArray();
         console.log('Previous image requested', pos);
-        document.getElementById('mainImage').src = urlHistory[pos][0];
+        displayImageAtHistoryPos(pos);
     } else {
         console.log("Can't go back in history further");
     }
@@ -704,7 +745,7 @@ async function nextImage() {
             currentHistoryPos++;
             const pos = getHistoryPosInArray();
             console.log('Next image requested',pos);
-            document.getElementById('mainImage').src = urlHistory[pos][0];
+            displayImageAtHistoryPos(pos);
             if (currentHistoryPos == 0){
                 unPause(true);
             }
@@ -810,6 +851,11 @@ favoriteButton.addEventListener('click', () => {
     addFavorite();
 });
 
+function showFaveButton(show){
+    showFavButton = show;
+    bottomCenterButtons.style.width = show ? "240" : "200";
+}
+
 globalSettingsButton.addEventListener('click', openGlobalSettings);
 function openGlobalSettings(){
     presetSettingsPanel.style.display = "none";
@@ -842,6 +888,8 @@ function loadGlobalSettings(){
     document.getElementById("globalblacklist").value = globalSettings.globalblacklist;
     document.getElementById("globalwhitelist").value = globalSettings.globalwhitelist;
 
+    showFaveButton(isUsingAuth());
+
     console.log("loaded global settings");
 }
 
@@ -863,6 +911,7 @@ function saveGlobalSettings(){
     let globalSettingsJson = JSON.stringify(globalSettings);
 
     localStorage.setItem("globalSettings", globalSettingsJson);
+    showFaveButton(isUsingAuth());
     closeSettingsPanel();
 }
 

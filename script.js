@@ -378,6 +378,8 @@ function addKeyEvents()
             nextImage();
         } else if (event.key === ' ') {
             togglePause();
+        } else if (event.key == "F" || event.key == "f") {
+            addFavorite();
         }
     });
 

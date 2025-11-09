@@ -367,6 +367,10 @@ function addKeyEvents()
     });
     // Add event listener for the left arrow key press
     document.addEventListener('keydown', async function(event) {
+        if (settingsPanelOpen) {
+            return;
+        }
+
         if (event.key === 'ArrowLeft') {
             // Call a function to navigate to the previous image
             previousImage();

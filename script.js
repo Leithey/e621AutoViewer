@@ -17,6 +17,7 @@ let hideTimeout;
 let cursorHidden = false;
 let mouseMoveTimeout;
 let isSearchingForNewImage;
+let isFavoritingImage;
 let firstImageLoaded = false;
 let settingsPanelOpen = false;
 let presetsData = [];
@@ -235,11 +236,15 @@ async function addFavorite(){
         url = `${config.url_e926}/favorites.json/?${queryParams}`;
     }
 
+    isFavoritingImage = true;
+
     // Send favorite request
     const response = await fetch(url, {
         method: 'POST',
         headers: headerParams
     });
+
+    isFavoritingImage = false;
 
     // Favoriting worked
     if(response.ok){
@@ -294,6 +299,7 @@ async function removeFavorite(){
 function displayImageAtHistoryPos(pos){
     document.getElementById('mainImage').src = urlHistory[pos][0];
     updateFavButton(urlHistory[pos][2]);
+    isFavoritingImage = false;
 }
 
 ////////////////////////////////////////////////////////////////////AGE CHECK/////////////////////////////////////////////////////////////////////////////

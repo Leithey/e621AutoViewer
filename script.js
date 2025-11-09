@@ -260,6 +260,36 @@ async function addFavorite(){
     }
 }
 
+//Remove the current image from favorites, if auth is supplied
+async function removeFavorite(){
+    let headerParams = {}
+    if(isUsingAuth())
+    {
+        headerParams.Authorization = `Basic ` + btoa(`${globalSettings.username}:${globalSettings.apikey}`);
+    } else {
+        return;
+    }
+
+    const queryParams = getCurrentId();
+
+    let url = "";
+    if (adultMode && presetSettings.adultcontent) {
+        url = `${config.url_e621}/favorites/${queryParams}.json`;
+    } else {
+        url = `${config.url_e926}/favorites/${queryParams}.json`;
+    }
+
+    // Send favorite request
+    const response = await fetch(url, {
+        method: 'DELETE',
+        headers: headerParams
+    });
+
+    // Update the current image's status
+    updateFavButton(false);
+    urlHistory[getHistoryPosInArray()][2] = false;
+}
+
 //Sets the current image to that of the given urlHistory position
 function displayImageAtHistoryPos(pos){
     document.getElementById('mainImage').src = urlHistory[pos][0];
@@ -848,8 +878,12 @@ function openSource() {
 }
 
 favoriteButton.addEventListener('click', () => {
-    addFavorite();
+    toggleFavorite();
 });
+
+function toggleFavorite(){
+    urlHistory[getHistoryPosInArray()][2] ? removeFavorite() : addFavorite();
+}
 
 function showFaveButton(show){
     showFavButton = show;

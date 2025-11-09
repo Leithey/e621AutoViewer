@@ -1,4 +1,4 @@
-//TODO: 
+//TODO:
 // Import/Export buttons
 // Make the save/delete buttons always visible and not scale with the rest
 // credit to keru: Favorite images to e621 or locally?
@@ -203,11 +203,11 @@ async function getNewImageUrl(){
     } catch (error) {
         if (error.message !== "paused") {
             if (error.message === "noImages") {
-                
+
             } else {
                 console.error("Error:", error);
             }
-            
+
         }
         return null;
     }
@@ -324,7 +324,7 @@ document.addEventListener('DOMContentLoaded', async function() {
         yesButton.addEventListener('click', async function() {
             console.log("18+")
             localStorage.setItem('ageConfirmed', 'true'); // Save user confirmation
-            
+
             await ageCheckPassed();
         });
 
@@ -397,7 +397,7 @@ function addKeyEvents()
                 nextImage();
             }
         }
-        
+
         // Reset touch tracking variables
         touchStartX = null;
         touchEndX = null;
@@ -409,7 +409,7 @@ function addKeyEvents()
 
 async function leftClick(event)
 {
-    if (settingsPanelOpen && !settingsPanel.contains(event.target) && 
+    if (settingsPanelOpen && !settingsPanel.contains(event.target) &&
         (event.target === mainImage || event.target === background)) {
         closeSettingsPanel();
     } else if (mainImage.contains(event.target)) {
@@ -430,7 +430,7 @@ document.addEventListener('mousemove', () => {
         }
     }
     clearTimeout(hideTimeout); // Clear the timeout if settings button is visible
-    
+
     // Hide the cursor after a period of inactivity
     if (cursorHidden) {
         showCursor(); // Show the cursor if it's hidden
@@ -527,10 +527,10 @@ async function loadPresets(reset = false) {
         if (selectedPreset === null || selectedPreset === undefined) {
             selectedPreset = 0;
         }
-        
+
         if (!reset && localPresetsData) {
             presetsData = JSON.parse(localPresetsData);
-            
+
         } else {
             const response = await fetch('presets.json');
             if (!response.ok) {
@@ -655,7 +655,7 @@ function isBlacklisted(postData){
 
     //console.log(blacklist);
     const allTags = Object.values(postData.tags).flatMap(tags => tags); // Flatten the tags into a single array
-    
+
     const blacklistedTags = [];
     for (const tag of blacklist) {
         if (allTags.includes(tag)) {
@@ -686,7 +686,7 @@ function isWhitelisted(postData){
                 whitelistedTags.push(tag);
             }
         }
-    
+
         if (whitelist.length === whitelistedTags.length) {
             console.log("Whitelisted tags found:", whitelistedTags);
             return true;
@@ -751,7 +751,7 @@ async function pause(){
     hideLoading();
 }
 
-//unpauses the autoviewer. Input true to not search for a new image after unpausing and to instead wait the normal delay 
+//unpauses the autoviewer. Input true to not search for a new image after unpausing and to instead wait the normal delay
 async function unPause(skipNewSearch = false){
     if (!isSearchingForNewImage) {
         paused = false;

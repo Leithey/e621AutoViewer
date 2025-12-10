@@ -317,6 +317,16 @@
                         <input type="text" id="globalwhitelist">
                         <span class="tooltiptext">Only if all whitelist tags are found in the image tags, the image is accepted. Seperate with space bars</span>
                     </div>
+                    <div class="tooltip" style="display: flex; margin-bottom: 5px;">
+                        <label for="batchSize">Batch Size:&nbsp;</label>
+                        <input type="number" id="batchSize" style="flex-grow: 0; min-width: 60px; width: 60px; max-width:60px;" min="1" max="320">
+                        <span class="tooltiptext">Number of posts to fetch per API request. Must be consistent to avoid missing posts. Default: 25, Max: 320</span>
+                    </div>
+                    <div class="tooltip" style="display: flex; margin-bottom: 5px;">
+                        <label for="debugMode">Debug Mode:&nbsp;</label>
+                        <input type="checkbox" id="debugMode">
+                        <span class="tooltiptext">Enable logging to the browser console.</span>
+                    </div>
                     <div style="display: flex; justify-content: space-between; margin-top: auto;">
                         <button id="saveGlobalSettings">Save</button>
                     </div>

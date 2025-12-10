@@ -7,6 +7,7 @@
     "download_rate_mb": 1,
     "max_filesize_mb": 30,
     "max_foldersize_mb": 1000,
+    "debug": false,
     "taglist": "order:random score:>100 -humanoid_penis tapering_penis",
     "whitelist_tags": [
         [

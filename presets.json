@@ -1,7 +1,7 @@
 [
     {
         "presetName": "Default NSFW",
-        "refreshRate": "10000",
+        "refreshRate": "10",
         "tags": "order:random score:>500",
         "blacklist": "",
         "whitelist": "",
@@ -9,7 +9,7 @@
     },
     {
         "presetName": "Default SFW",
-        "refreshRate": "10000",
+        "refreshRate": "10",
         "tags": "order:random score:>500",
         "blacklist": "",
         "whitelist": "",
@@ -17,7 +17,7 @@
     },
     {
         "presetName": "Random",
-        "refreshRate": "10000",
+        "refreshRate": "10",
         "tags": "order:random",
         "blacklist": "",
         "whitelist": "",
@@ -25,7 +25,7 @@
     },
     {
         "presetName": "Newest",
-        "refreshRate": "10000",
+        "refreshRate": "10",
         "tags": "",
         "blacklist": "",
         "whitelist": "",
@@ -33,7 +33,7 @@
     },
     {
         "presetName": "Memes",
-        "refreshRate": "10000",
+        "refreshRate": "10",
         "tags": "order:random meme",
         "blacklist": "",
         "whitelist": "",
@@ -41,7 +41,7 @@
     },
     {
         "presetName": "Why?",
-        "refreshRate": "10000",
+        "refreshRate": "10",
         "tags": "order:random ~why ~where_is_your_god_now",
         "blacklist": "",
         "whitelist": "",
@@ -49,7 +49,7 @@
     },
     {
         "presetName": "Cute boys with tapers",
-        "refreshRate": "10000",
+        "refreshRate": "10",
         "tags": "order:random score:>100 -humanoid_penis tapering_penis",
         "blacklist": "scat fart watersports blood 3d human big_breasts overweight my_little_pony diaper fatal_vore hard_vore amputation amputee cock_vore herm humanoid_penis latex hyper",
         "whitelist": "",

@@ -96,6 +96,8 @@ let presetsData = [];
 let globalSettings;
 let selectedPreset = 0;
 let presetSettings;
+let temporarySearchActive = false;
+let savedPresetSettings = null;
 // Batch caching for efficient API usage
 let currentPostBatch = [];
 let currentBatchIndex = 0;
@@ -135,13 +137,20 @@ const downloadButton = document.getElementById('downloadButton');
 const globalSettingsButton = document.getElementById('globalsettingsbutton');
 const globalPresetsButton = document.getElementById('presetsettingsbutton');
 const creditsButton = document.getElementById('creditsbutton');
+const searchButton = document.getElementById('searchbutton');
 const presetList = document.getElementById("presetList");
 const presetSettingsPanel = document.getElementById("presetsettingspanel");
 const globalsettingsPanel = document.getElementById("globalsettingspanel");
 const creditsPanel = document.getElementById('creditsPanel');
+const searchPanel = document.getElementById('searchPanel');
 const usernameInput = document.getElementById('username');
 const apiKeyInput = document.getElementById('apikey');
 const noImagesFound = document.getElementById('noimages');
+const presetNamePrompt = document.getElementById('presetNamePrompt');
+const presetNameInput = document.getElementById('presetNameInput');
+const presetNameError = document.getElementById('presetNameError');
+const presetNameCancel = document.getElementById('presetNameCancel');
+const presetNameConfirm = document.getElementById('presetNameConfirm');
 
 ///////////////////////////////////////////////////////////////INITIALIZATION/////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -169,7 +178,6 @@ async function initialize() {
         showLoading();
         await loadConfig();
         imageLoop();
-        openCredits();
 
         document.addEventListener('visibilitychange', handleVisibilityChange);
     } catch (error) {
@@ -232,9 +240,10 @@ async function imageLoop(skipNewSearch = false) {
             Logger.log(`[imageLoop] Skipping search - skipNewSearch: ${skipNewSearch}, isSearchingForNewImage: ${isSearchingForNewImage}`);
         }
         if (!paused) {
-            Logger.log(`[imageLoop] Scheduling next loop in ${presetSettings.refreshRate}ms`);
+            const refreshRateMs = parseFloat(presetSettings.refreshRate) * 1000;
+            Logger.log(`[imageLoop] Scheduling next loop in ${presetSettings.refreshRate}s (${refreshRateMs}ms)`);
             clearTimeout(timeoutId); // Clear any existing timeout before setting a new one
-            timeoutId = setTimeout(imageLoop, presetSettings.refreshRate);
+            timeoutId = setTimeout(imageLoop, refreshRateMs);
         } else {
             Logger.log(`[imageLoop] Not scheduling next loop (paused: ${paused})`);
         }
@@ -339,8 +348,12 @@ function buildQueryString() {
     // Prefix blacklist tags with '-' for e621 API exclusion syntax
     const negatedBlacklist = blacklist.map(tag => `-${tag}`);
 
-    // Combine all tags and blacklist tags
-    const allTags = tags.concat(negatedBlacklist);
+    // Automatically exclude video file types (webm, mp4) using e621's filetype: filter
+    // This is more efficient than filtering in code after fetching
+    const excludedFileTypes = ['-filetype:webm', '-filetype:mp4'];
+
+    // Combine all tags, blacklist tags, and file type exclusions
+    const allTags = tags.concat(negatedBlacklist).concat(excludedFileTypes);
 
     // Cache and return the result
     cachedQueryString = allTags.join(' ');
@@ -751,6 +764,8 @@ function openSettingsPanel() {
     clearTimeout(hideTimeout); // Prevent hiding UI while settings panel is open
     pause();
     Logger.log("opening settings");
+    // Open Search tab by default
+    openSearchTab();
 }
 
 document.getElementById('closesettingsbutton').addEventListener('click', closeSettingsPanel);
@@ -767,7 +782,7 @@ function closeSettingsPanel() {
 function createNewPreset() {
     var newPreset = {
         "presetName": "New Preset",
-        "refreshRate": "10000",
+        "refreshRate": "10",
         "tags": "",
         "blacklist": "",
         "whitelist": "",
@@ -784,6 +799,7 @@ function addPresetItem(name) {
     const newPreset = document.createElement('div');
     newPreset.classList.add('presetItem');
     newPreset.textContent = name;
+    newPreset.title = name; // Show full name in tooltip when hovering
     newPreset.dataset.index = presetList.children.length;;
     newPreset.addEventListener('click', function () {
         let index = newPreset.dataset.index;
@@ -803,6 +819,14 @@ async function loadPresets(reset = false) {
 
         if (!reset && localPresetsData) {
             presetsData = JSON.parse(localPresetsData);
+            // Migrate refreshRate values from milliseconds to seconds if needed
+            for (let i = 0; i < presetsData.length; i++) {
+                if (presetsData[i].refreshRate) {
+                    presetsData[i].refreshRate = normalizeRefreshRate(presetsData[i].refreshRate);
+                }
+            }
+            // Save migrated presets back to localStorage
+            savePresets();
 
         } else {
             const response = await fetch('presets.json');
@@ -822,10 +846,56 @@ async function loadPresets(reset = false) {
         addPresetItem(presetsData[i].presetName);
     }
     loadPreset(selectedPreset);
+    
+    // Check if there's a saved temporary search to restore
+    const savedTemporarySearch = localStorage.getItem("temporarySearch");
+    const savedTemporarySearchActive = localStorage.getItem("temporarySearchActive");
+    
+    if (savedTemporarySearchActive === "true" && savedTemporarySearch) {
+        try {
+            const tempPreset = JSON.parse(savedTemporarySearch);
+            // Migrate refreshRate from milliseconds to seconds if needed
+            if (tempPreset.refreshRate) {
+                tempPreset.refreshRate = normalizeRefreshRate(tempPreset.refreshRate);
+            }
+            presetSettings = tempPreset;
+            temporarySearchActive = true;
+            savedPresetSettings = presetsData[selectedPreset]; // Save the preset that was loaded
+            
+            // Reset batch cache for the temporary search
+            currentPostBatch = [];
+            currentBatchIndex = 0;
+            currentBatchPage = 1;
+            currentBatchQuery = "";
+            prefetchedBatch = [];
+            prefetchedPage = null;
+            prefetchPromise = null;
+            invalidateQueryStringCache();
+            
+            Logger.log("Restored temporary search from previous session:", tempPreset.presetName);
+        } catch (error) {
+            Logger.error("Error restoring temporary search:", error);
+            localStorage.removeItem("temporarySearch");
+            localStorage.removeItem("temporarySearchActive");
+        }
+    }
+}
+
+// Helper function to convert refreshRate from milliseconds to seconds if needed (for backward compatibility)
+function normalizeRefreshRate(refreshRate) {
+    const value = parseFloat(refreshRate);
+    // If value is > 100, assume it's in milliseconds (old format) and convert to seconds
+    if (value > 100) {
+        return (value / 1000).toString();
+    }
+    return refreshRate.toString();
 }
 
 function loadPreset(index) {
     presetSettings = presetsData[index];
+    
+    // Migrate refreshRate from milliseconds to seconds if needed
+    presetSettings.refreshRate = normalizeRefreshRate(presetSettings.refreshRate);
 
     document.getElementById("presetName").value = presetSettings.presetName;
     document.getElementById("refreshRate").value = presetSettings.refreshRate;
@@ -835,6 +905,12 @@ function loadPreset(index) {
     document.getElementById("adultcontent").checked = presetSettings.adultcontent;
 
     selectedPreset = index;
+    
+    // Clear temporary search state when loading a preset
+    temporarySearchActive = false;
+    savedPresetSettings = null;
+    localStorage.removeItem("temporarySearch");
+    localStorage.removeItem("temporarySearchActive");
 
     // Reset batch cache when preset changes (tags will be different)
     currentPostBatch = [];
@@ -856,6 +932,7 @@ function loadPreset(index) {
 
     localStorage.setItem("selectedPreset", index);
     Logger.log("Preset loaded:", presetSettings.presetName);
+    updateDocumentTitle();
 }
 
 function savePreset(index) {
@@ -911,9 +988,11 @@ globalPresetsButton.addEventListener('click', openPresetSettings);
 function openPresetSettings() {
     globalsettingsPanel.style.display = "none";
     creditsPanel.style.display = "none";
+    searchPanel.style.display = "none";
     presetSettingsPanel.style.display = "flex";
     globalSettingsButton.classList.remove("selected");
     creditsButton.classList.remove("selected");
+    searchButton.classList.remove("selected");
     globalPresetsButton.classList.add("selected");
 }
 
@@ -921,11 +1000,180 @@ creditsButton.addEventListener('click', openCredits);
 function openCredits() {
     globalsettingsPanel.style.display = "none";
     presetSettingsPanel.style.display = "none";
+    searchPanel.style.display = "none";
     creditsPanel.style.display = "flex";
     globalSettingsButton.classList.remove("selected");
     globalPresetsButton.classList.remove("selected");
+    searchButton.classList.remove("selected");
     creditsButton.classList.add("selected");
 }
+
+searchButton.addEventListener('click', openSearchTab);
+function openSearchTab() {
+    globalsettingsPanel.style.display = "none";
+    presetSettingsPanel.style.display = "none";
+    creditsPanel.style.display = "none";
+    searchPanel.style.display = "flex";
+    globalSettingsButton.classList.remove("selected");
+    globalPresetsButton.classList.remove("selected");
+    creditsButton.classList.remove("selected");
+    searchButton.classList.add("selected");
+    
+    // Clear search fields (refreshRate has default value)
+    document.getElementById("searchRefreshRate").value = "10";
+    document.getElementById("searchTags").value = "";
+    document.getElementById("searchBlacklist").value = "";
+    document.getElementById("searchWhitelist").value = "";
+    document.getElementById("searchAdultContent").checked = false;
+}
+
+document.getElementById('playSearchBtn').addEventListener('click', loadTemporarySearch);
+function loadTemporarySearch() {
+    // Save current preset settings as backup
+    if (!temporarySearchActive) {
+        savedPresetSettings = { ...presetSettings };
+    }
+    
+    // Get refresh rate, use default if empty
+    const refreshRateValue = document.getElementById("searchRefreshRate").value.trim();
+    const refreshRate = refreshRateValue === "" ? "10" : refreshRateValue;
+    
+    // Create temporary preset from search inputs
+    const tempPreset = {
+        presetName: "Temporary Search",
+        refreshRate: refreshRate,
+        tags: document.getElementById("searchTags").value,
+        blacklist: document.getElementById("searchBlacklist").value,
+        whitelist: document.getElementById("searchWhitelist").value,
+        adultcontent: document.getElementById("searchAdultContent").checked
+    };
+    
+    // Set temporary preset as current preset
+    presetSettings = tempPreset;
+    temporarySearchActive = true;
+    
+    // Save temporary search to localStorage for persistence across page refreshes
+    localStorage.setItem("temporarySearch", JSON.stringify(tempPreset));
+    localStorage.setItem("temporarySearchActive", "true");
+    
+    // Reset batch cache when search changes (tags will be different)
+    currentPostBatch = [];
+    currentBatchIndex = 0;
+    currentBatchPage = 1;
+    currentBatchQuery = "";
+    // Also clear prefetch state
+    prefetchedBatch = [];
+    prefetchedPage = null;
+    prefetchPromise = null;
+    // Invalidate query string cache since preset tags changed
+    invalidateQueryStringCache();
+    
+    // Update document title
+    updateDocumentTitle();
+    
+    Logger.log("Temporary search loaded:", presetSettings.presetName);
+    
+    // Close settings and start playing
+    closeSettingsPanel();
+}
+
+document.getElementById('saveSearchAsPresetBtn').addEventListener('click', showPresetNamePrompt);
+function showPresetNamePrompt() {
+    // Reset the input and error message
+    presetNameInput.value = "New Search Preset";
+    presetNameError.style.display = "none";
+    presetNameError.textContent = "";
+    
+    // Show the modal
+    presetNamePrompt.style.display = "flex";
+    
+    // Focus the input
+    presetNameInput.focus();
+    presetNameInput.select();
+}
+
+function hidePresetNamePrompt() {
+    presetNamePrompt.style.display = "none";
+    presetNameInput.value = "";
+    presetNameError.style.display = "none";
+    presetNameError.textContent = "";
+}
+
+function confirmPresetName() {
+    let presetName = presetNameInput.value.trim();
+    
+    // Validate input
+    if (presetName === "") {
+        presetNameError.textContent = "Preset name cannot be empty!";
+        presetNameError.style.display = "block";
+        return;
+    }
+    
+    // Check for duplicate names
+    const duplicateExists = presetsData.some(preset => preset.presetName === presetName);
+    if (duplicateExists) {
+        presetNameError.textContent = `A preset named "${presetName}" already exists. Please choose a different name.`;
+        presetNameError.style.display = "block";
+        return;
+    }
+    
+    // Hide the modal
+    hidePresetNamePrompt();
+    
+    // Get refresh rate, use default if empty
+    const refreshRateValue = document.getElementById("searchRefreshRate").value.trim();
+    const refreshRate = refreshRateValue === "" ? "10" : refreshRateValue;
+    
+    // Create new preset from search inputs
+    const newPreset = {
+        presetName: presetName,
+        refreshRate: refreshRate,
+        tags: document.getElementById("searchTags").value,
+        blacklist: document.getElementById("searchBlacklist").value,
+        whitelist: document.getElementById("searchWhitelist").value,
+        adultcontent: document.getElementById("searchAdultContent").checked
+    };
+    
+    // Add to presets data
+    presetsData.push(newPreset);
+    
+    // Add to UI
+    addPresetItem(newPreset.presetName);
+    
+    // Save to localStorage
+    savePresets();
+    
+    // Load the newly created preset
+    const newPresetIndex = presetsData.length - 1;
+    loadPreset(newPresetIndex);
+    
+    Logger.log("Search saved as preset:", presetName);
+    
+    // Switch to presets tab to show the result
+    openPresetSettings();
+}
+
+// Event listeners for the preset name modal
+presetNameCancel.addEventListener('click', hidePresetNamePrompt);
+presetNameConfirm.addEventListener('click', confirmPresetName);
+
+// Handle Enter key in the input field
+presetNameInput.addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') {
+        e.preventDefault();
+        confirmPresetName();
+    } else if (e.key === 'Escape') {
+        e.preventDefault();
+        hidePresetNamePrompt();
+    }
+});
+
+// Close modal when clicking outside of it
+presetNamePrompt.addEventListener('click', function(e) {
+    if (e.target === presetNamePrompt) {
+        hidePresetNamePrompt();
+    }
+});
 
 
 ///////////////////////////////////////////////////////////////HELPER FUNCTIONS/////////////////////////////////////////////////////////////////////////////
@@ -989,6 +1237,7 @@ async function pause() {
     clearTimeout(timeoutId);
     isSearchingForNewImage = false;
     hideLoading();
+    updateDocumentTitle();
 }
 
 //unpauses the autoviewer. Input true to not search for a new image after unpausing and to instead wait the normal delay 
@@ -997,6 +1246,7 @@ async function unPause(skipNewSearch = false) {
         paused = false;
         pauseIcon.style.display = 'none';
         clearTimeout(timeoutId);
+        updateDocumentTitle();
         await imageLoop(skipNewSearch);
     } else {
         Logger.log("Not unpausing, new image is being searched");
@@ -1139,9 +1389,11 @@ globalSettingsButton.addEventListener('click', openGlobalSettings);
 function openGlobalSettings() {
     presetSettingsPanel.style.display = "none";
     creditsPanel.style.display = "none";
+    searchPanel.style.display = "none";
     globalsettingsPanel.style.display = "flex";
     globalPresetsButton.classList.remove("selected");
     creditsButton.classList.remove("selected");
+    searchButton.classList.remove("selected");
     globalSettingsButton.classList.add("selected");
     loadGlobalSettings();
 }
@@ -1207,6 +1459,12 @@ function saveGlobalSettings() {
     let globalSettingsJson = JSON.stringify(globalSettings);
 
     localStorage.setItem("globalSettings", globalSettingsJson);
+    
+    // Clear temporary search state when global settings change
+    temporarySearchActive = false;
+    savedPresetSettings = null;
+    localStorage.removeItem("temporarySearch");
+    localStorage.removeItem("temporarySearchActive");
 
     // Invalidate query string cache since global settings changed
     invalidateQueryStringCache();
@@ -1251,6 +1509,22 @@ function hideCursor() {
 function showCursor() {
     document.body.style.cursor = 'auto';
     cursorHidden = false;
+}
+
+// Function to update the document title based on preset and pause state
+function updateDocumentTitle() {
+    if (typeof presetSettings === 'undefined' || !presetSettings) {
+        document.title = 'e621 Slideshow';
+        return;
+    }
+    
+    const presetName = presetSettings.presetName || 'Unknown Preset';
+    
+    if (paused) {
+        document.title = `e621 AutoViewer (Paused) - ${presetName}`;
+    } else {
+        document.title = `${presetName} - e621 AutoViewer`;
+    }
 }
 
 ///////////////////////////////////////////////////////////////AUTOCOMPLETE/////////////////////////////////////////////////////////////////////////////
@@ -1467,6 +1741,6 @@ function formatCount(n) {
 
 // Initialize autocomplete
 document.addEventListener('DOMContentLoaded', function () {
-    const ids = ["globaltags", "globalblacklist", "globalwhitelist", "tags", "blacklist", "whitelist"];
+    const ids = ["globaltags", "globalblacklist", "globalwhitelist", "tags", "blacklist", "whitelist", "searchTags", "searchBlacklist", "searchWhitelist"];
     ids.forEach(id => setupAutocomplete(id));
 });

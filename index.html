@@ -243,6 +243,64 @@
             margin-bottom: 10px; /* Add bottom margin for separation */
         }
 
+
+        /* Autocomplete Styles */
+        .autocomplete-container {
+            position: relative;
+            display: inline-block;
+            width: 100%;
+        }
+
+        .autocomplete-items {
+            position: absolute;
+            border: 1px solid #1f3c67;
+            border-bottom: none;
+            border-top: none;
+            z-index: 9999;
+            top: 100%;
+            left: 0;
+            right: 0;
+            max-height: 300px;
+            overflow-y: auto;
+            background-color: #1f3c67;
+            color: white;
+            font-family: Verdana, sans-serif;
+            font-size: 13px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+        }
+
+        .autocomplete-item {
+            padding: 4px 8px;
+            cursor: pointer;
+            background-color: #1f3c67;
+            border-bottom: 1px solid #2e4e7e;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .autocomplete-item:hover {
+            background-color: #2e4e7e;
+        }
+
+        .autocomplete-active {
+            background-color: #2e4e7e !important;
+        }
+
+        /* Tag Colors */
+        .tag-general { color: #b4c7d9; }
+        .tag-artist { color: #f2ac08; }
+        .tag-copyright { color: #dd00dd; }
+        .tag-character { color: #00aa00; }
+        .tag-species { color: #ed5d1f; }
+        .tag-meta { color: #ffffff; }
+        .tag-lore { color: #228822; }
+        .tag-invalid { color: #ff0000; }
+
+        .tag-count {
+            color: inherit;
+            font-size: 0.9em;
+            opacity: 0.8;
+        }
     </style>
 </head>
 <body>

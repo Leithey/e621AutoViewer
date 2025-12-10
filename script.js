@@ -1,4 +1,4 @@
-//TODO: 
+//TODO:
 // Import/Export buttons
 // Make the save/delete buttons always visible and not scale with the rest
 // credit to keru: Favorite images to e621 or locally?
@@ -10,19 +10,21 @@ let adultMode = false;
 let config;
 let timeoutId;
 let paused = false;
-let urlHistory = []; //Array in Array. Element 0 is the direct fileName, Element 1 is the fileId
+let urlHistory = []; //Array in Array. Element 0 is the direct fileName, Element 1 is the fileId, Element 2 is the favorited status
 let currentHistoryPos = 0;
 let pageIsHidden;
 let hideTimeout;
 let cursorHidden = false;
 let mouseMoveTimeout;
 let isSearchingForNewImage;
+let isFavoritingImage;
 let firstImageLoaded = false;
 let settingsPanelOpen = false;
 let presetsData = [];
 let globalSettings;
 let selectedPreset = 0;
 let presetSettings;
+let showFavButton = false;
 
 const settingsButton = document.getElementById('settingsButtonDiv');
 const mainImage = document.getElementById("mainImage");
@@ -32,6 +34,8 @@ const loading = document.getElementById('loading');
 const loadingtop = document.getElementById('loadingtop');
 const sourceButton = document.getElementById('sourceButton');
 const downloadButton = document.getElementById('downloadButton');
+const favoriteButton = document.getElementById('favoriteButton');
+const bottomCenterButtons = document.getElementById('bottomCenterButtons');
 const globalSettingsButton = document.getElementById('globalsettingsbutton');
 const globalPresetsButton = document.getElementById('presetsettingsbutton');
 const creditsButton = document.getElementById('creditsbutton');
@@ -101,7 +105,7 @@ async function imageLoop(skipNewSearch = false){
                 // after the new image finished loading, only show it if not paused (as could happen during download)
                 if (!paused && !pageIsHidden) {
                     // Update the main image element
-                    document.getElementById('mainImage').src = imageUrl;
+                    displayImageAtHistoryPos(urlHistory.length - 1);
                     currentHistoryPos = 0;
                     firstImageLoaded = true;
                     hideLoading();
@@ -132,14 +136,14 @@ async function getNewImageUrl(){
 
     let url = "";
     if (adultMode && presetSettings.adultcontent) {
-        url = `${config.url_e621}/posts.json/?${queryParams}`;
+        url = `${config.url_e621}/posts.json/?${queryParams}`
     } else {
         url = `${config.url_e926}/posts.json/?${queryParams}`;
     }
 
     let headerParams = {}
 
-    if (globalSettings.username.length > 0 && globalSettings.apikey.length > 0) {
+    if (isUsingAuth()) {
         headerParams.Authorization = `Basic ` + btoa(`${globalSettings.username}:${globalSettings.apikey}`);
     }
 
@@ -160,6 +164,7 @@ async function getNewImageUrl(){
 
         let fileUrl;
         let fileId;
+        let isFavorited;
         let post;
 
         for (let i = 0; i < postData.posts.length; i++) {
@@ -177,6 +182,7 @@ async function getNewImageUrl(){
             } else if (isWhitelisted(post)){
                 fileUrl = post.file.url;
                 fileId = post.id;
+                isFavorited = post.is_favorited;
                 break;
             } else {
                 continue;
@@ -189,21 +195,111 @@ async function getNewImageUrl(){
             return getNewImageUrl(); //no fitting image found, redo the search
         } else {
             console.log("New Image Found!", "Score:", post.score.total, "URL:\n" + fileUrl, "ID:\n" + fileId);
-            urlHistory.push([fileUrl, fileId]);
+
+            urlHistory.push([fileUrl, fileId, isFavorited]);
             currentHistoryPos--;
             return fileUrl;
         }
     } catch (error) {
         if (error.message !== "paused") {
             if (error.message === "noImages") {
-                
+
             } else {
                 console.error("Error:", error);
             }
-            
+
         }
         return null;
     }
+}
+
+//Add the current image to favorites, if auth is supplied
+async function addFavorite(){
+    let headerParams = {}
+    if(isUsingAuth())
+    {
+        headerParams.Authorization = `Basic ` + btoa(`${globalSettings.username}:${globalSettings.apikey}`);
+    } else {
+        return;
+    }
+
+    const params = {
+        "post_id": getCurrentId(),
+    }
+
+    const queryParams = new URLSearchParams(params).toString();
+
+    let url = "";
+    if (adultMode && presetSettings.adultcontent) {
+        url = `${config.url_e621}/favorites.json/?${queryParams}`;
+    } else {
+        url = `${config.url_e926}/favorites.json/?${queryParams}`;
+    }
+
+    isFavoritingImage = true;
+
+    // Send favorite request
+    const response = await fetch(url, {
+        method: 'POST',
+        headers: headerParams
+    });
+
+    isFavoritingImage = false;
+
+    // Favoriting worked
+    if(response.ok){
+        const postData = await response.json();
+        if(getCurrentId() === postData.post_id){
+            // Update the current image's status
+            updateFavButton(true);
+            urlHistory[getHistoryPosInArray()][2] = true;
+        } else {
+            // Find the image for which the status was set
+            for(var i = 0; i <= urlHistory.length; i++) {
+                if(urlHistory[i][1] === postData.post_id) {
+                    urlHistory[i][2] = true;
+                    return;
+                }
+            }
+        }
+    }
+}
+
+//Remove the current image from favorites, if auth is supplied
+async function removeFavorite(){
+    let headerParams = {}
+    if(isUsingAuth())
+    {
+        headerParams.Authorization = `Basic ` + btoa(`${globalSettings.username}:${globalSettings.apikey}`);
+    } else {
+        return;
+    }
+
+    const queryParams = getCurrentId();
+
+    let url = "";
+    if (adultMode && presetSettings.adultcontent) {
+        url = `${config.url_e621}/favorites/${queryParams}.json`;
+    } else {
+        url = `${config.url_e926}/favorites/${queryParams}.json`;
+    }
+
+    // Send favorite request
+    const response = await fetch(url, {
+        method: 'DELETE',
+        headers: headerParams
+    });
+
+    // Update the current image's status
+    updateFavButton(false);
+    urlHistory[getHistoryPosInArray()][2] = false;
+}
+
+//Sets the current image to that of the given urlHistory position
+function displayImageAtHistoryPos(pos){
+    document.getElementById('mainImage').src = urlHistory[pos][0];
+    updateFavButton(urlHistory[pos][2]);
+    isFavoritingImage = false;
 }
 
 ////////////////////////////////////////////////////////////////////AGE CHECK/////////////////////////////////////////////////////////////////////////////
@@ -228,7 +324,7 @@ document.addEventListener('DOMContentLoaded', async function() {
         yesButton.addEventListener('click', async function() {
             console.log("18+")
             localStorage.setItem('ageConfirmed', 'true'); // Save user confirmation
-            
+
             await ageCheckPassed();
         });
 
@@ -271,6 +367,10 @@ function addKeyEvents()
     });
     // Add event listener for the left arrow key press
     document.addEventListener('keydown', async function(event) {
+        if (settingsPanelOpen) {
+            return;
+        }
+
         if (event.key === 'ArrowLeft') {
             // Call a function to navigate to the previous image
             previousImage();
@@ -278,6 +378,8 @@ function addKeyEvents()
             nextImage();
         } else if (event.key === ' ') {
             togglePause();
+        } else if (event.key == "F" || event.key == "f") {
+            addFavorite();
         }
     });
 
@@ -301,7 +403,7 @@ function addKeyEvents()
                 nextImage();
             }
         }
-        
+
         // Reset touch tracking variables
         touchStartX = null;
         touchEndX = null;
@@ -313,7 +415,7 @@ function addKeyEvents()
 
 async function leftClick(event)
 {
-    if (settingsPanelOpen && !settingsPanel.contains(event.target) && 
+    if (settingsPanelOpen && !settingsPanel.contains(event.target) &&
         (event.target === mainImage || event.target === background)) {
         closeSettingsPanel();
     } else if (mainImage.contains(event.target)) {
@@ -329,9 +431,12 @@ document.addEventListener('mousemove', () => {
     if (firstImageLoaded) {
         sourceButton.style.display = 'block';
         downloadButton.style.display = 'block';
+        if(showFavButton){
+            favoriteButton.style.display = 'block';
+        }
     }
     clearTimeout(hideTimeout); // Clear the timeout if settings button is visible
-    
+
     // Hide the cursor after a period of inactivity
     if (cursorHidden) {
         showCursor(); // Show the cursor if it's hidden
@@ -344,6 +449,7 @@ function mouseStoppedMoving() {
         settingsButton.style.display = 'none';
         sourceButton.style.display = 'none';
         downloadButton.style.display = 'none';
+        favoriteButton.style.display = 'none';
         hideCursor();
     }
 }
@@ -427,10 +533,10 @@ async function loadPresets(reset = false) {
         if (selectedPreset === null || selectedPreset === undefined) {
             selectedPreset = 0;
         }
-        
+
         if (!reset && localPresetsData) {
             presetsData = JSON.parse(localPresetsData);
-            
+
         } else {
             const response = await fetch('presets.json');
             if (!response.ok) {
@@ -555,7 +661,7 @@ function isBlacklisted(postData){
 
     //console.log(blacklist);
     const allTags = Object.values(postData.tags).flatMap(tags => tags); // Flatten the tags into a single array
-    
+
     const blacklistedTags = [];
     for (const tag of blacklist) {
         if (allTags.includes(tag)) {
@@ -586,7 +692,7 @@ function isWhitelisted(postData){
                 whitelistedTags.push(tag);
             }
         }
-    
+
         if (whitelist.length === whitelistedTags.length) {
             console.log("Whitelisted tags found:", whitelistedTags);
             return true;
@@ -621,6 +727,16 @@ function isFiletypeAllowed(postData){
     }
 }
 
+//check if user has provided auth credentials
+function isUsingAuth(){
+    return globalSettings.username.length > 0 && globalSettings.apikey.length > 0;
+}
+
+//sets the UI to reflect a favorite state
+function updateFavButton(isFavorited) {
+    favoriteButton.textContent = isFavorited ? "★" : "☆"
+}
+
 //Toggles the pause state
 async function togglePause() {
     // Get the pause icon element
@@ -641,7 +757,7 @@ async function pause(){
     hideLoading();
 }
 
-//unpauses the autoviewer. Input true to not search for a new image after unpausing and to instead wait the normal delay 
+//unpauses the autoviewer. Input true to not search for a new image after unpausing and to instead wait the normal delay
 async function unPause(skipNewSearch = false){
     if (!isSearchingForNewImage) {
         paused = false;
@@ -660,7 +776,7 @@ async function previousImage()
         currentHistoryPos--;
         const pos = getHistoryPosInArray();
         console.log('Previous image requested', pos);
-        document.getElementById('mainImage').src = urlHistory[pos][0];
+        displayImageAtHistoryPos(pos);
     } else {
         console.log("Can't go back in history further");
     }
@@ -671,7 +787,7 @@ async function nextImage() {
             currentHistoryPos++;
             const pos = getHistoryPosInArray();
             console.log('Next image requested',pos);
-            document.getElementById('mainImage').src = urlHistory[pos][0];
+            displayImageAtHistoryPos(pos);
             if (currentHistoryPos == 0){
                 unPause(true);
             }
@@ -773,6 +889,19 @@ function openSource() {
     window.open(getCurrentSourceURL());
 }
 
+favoriteButton.addEventListener('click', () => {
+    toggleFavorite();
+});
+
+function toggleFavorite(){
+    urlHistory[getHistoryPosInArray()][2] ? removeFavorite() : addFavorite();
+}
+
+function showFaveButton(show){
+    showFavButton = show;
+    bottomCenterButtons.style.width = show ? "240" : "200";
+}
+
 globalSettingsButton.addEventListener('click', openGlobalSettings);
 function openGlobalSettings(){
     presetSettingsPanel.style.display = "none";
@@ -805,6 +934,8 @@ function loadGlobalSettings(){
     document.getElementById("globalblacklist").value = globalSettings.globalblacklist;
     document.getElementById("globalwhitelist").value = globalSettings.globalwhitelist;
 
+    showFaveButton(isUsingAuth());
+
     console.log("loaded global settings");
 }
 
@@ -826,6 +957,7 @@ function saveGlobalSettings(){
     let globalSettingsJson = JSON.stringify(globalSettings);
 
     localStorage.setItem("globalSettings", globalSettingsJson);
+    showFaveButton(isUsingAuth());
     closeSettingsPanel();
 }
 

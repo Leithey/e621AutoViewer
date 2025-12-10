@@ -86,10 +86,12 @@
             justify-content: space-between;
             flex-direction: row;
             width: 200px;
+            height: 29px;
             z-index: 100;
         }
         #sourceButton,
-        #downloadButton {
+        #downloadButton,
+        #favoriteButton {
             background-size: cover;
             background-color: rgba(0, 0, 0, 0.142);
             border: none;
@@ -99,6 +101,16 @@
             font-size: 20px;
             color: white;
             border-radius:5px;
+        }
+        #favoriteButton {
+            /* color: white;
+            text-shadow: -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000;
+            background-color: transparent;
+            border: none;
+            cursor: pointer;
+            display: none;
+            z-index: 100;
+            font-size: 20px; */
         }
         #settingsButtonDiv{
             position:fixed;
@@ -139,7 +151,6 @@
             flex: 1;
             width: 10px; /*why do I need to add this for the column to scale properly? wtf*/
         }
-        
 
         /*********************************** SETTINGS /***********************************/
         .settingsPanel {
@@ -264,6 +275,7 @@
         <div id="bottomCenterButtons">
             <button id="sourceButton">Source</button>
             <button id="downloadButton">Download</button>
+            <button id="favoriteButton">☆</button>
         </div>
 
 
@@ -300,7 +312,7 @@
                     <div class="tooltip" style="display: flex; margin-bottom: 5px;">
                         <label for="apikey">API Key:&nbsp;</label>
                         <input type="text" id="apikey">
-                        <span class="tooltiptext">API Key (Not required, but needed to disable the e621 global blacklist for users without an account. Found on e621 in Account > My profile)</span>
+                        <span class="tooltiptext">API Key (Not required, but needed to disable the e621 global blacklist for users without an account, and to add/remove favorites. Found on e621 in Account > My profile)</span>
                     </div>
                     <div class="tooltip" style="display: flex; margin-bottom: 5px;">
                         <label for="globaltags">Search Tags:&nbsp;</label>
@@ -384,6 +396,7 @@
                     <li>Swipe Left or Left Arrow Key: Go back in History</li>
                     <li>Swipe Right or Right Arrow Key: Go forward in History or force load new Image</li>
                     <li>Tap or Left Mouse Click or Spacebar: Pause/Unpause</li>
+                    <li>F Key: Add to Favorites</li>
                 </ul>
             </div>
         </div>

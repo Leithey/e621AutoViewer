@@ -230,6 +230,15 @@
             background-color: #d8d8d8;
         }
 
+        /* Adult content option greyed out while not logged in */
+        .disabled-option {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        .disabled-option input {
+            cursor: not-allowed;
+        }
+
         #creditsPanel h3 {
             margin-top: 10px; /* Remove top margin */
             margin-bottom: 0px; /* Add bottom margin for separation */
@@ -376,9 +385,9 @@
                         <span class="tooltiptext">Only if all whitelist tags are found in the image tags, the image is accepted. Seperate with space bars</span>
                     </div>
                     <div class="tooltip" style="display: flex; margin-bottom: 5px;">
-                        <label for="adultcontent">Adult Content:&nbsp;</label>
+                        <label for="adultcontent" id="adultcontentLabel">Adult Content:&nbsp;</label>
                         <input type="checkbox" id="adultcontent">
-                        <span class="tooltiptext">If unchecked, only SFW content is displayed</span>
+                        <span class="tooltiptext" id="adultcontentTooltip">If unchecked, only SFW content is displayed</span>
                     </div>
                     <div style="display: flex; justify-content: space-between; margin-top: auto;">
                         <button id="savePreset">Save</button>
@@ -388,6 +397,7 @@
             </div>
             <div id="creditsPanel" class="row" style="display:none; overflow: auto; flex-direction: column;">
                 <h3>e621AutoViewer created by: <b>Leithey</b></h3>
+                <p>Version: <b>0.3.0</b></p>
                 <p>Contact: <a href="mailto:creations@leithey.com">creations@leithey.com</a></p>
                 <p>Source Code: <a href="https://github.com/Leithey/e621AutoViewer/">Github</a></p>
                 <p>Contributors:<p>
@@ -403,6 +413,18 @@
                     <li>Swipe Right or Right Arrow Key: Go forward in History or force load new Image</li>
                     <li>Tap or Left Mouse Click or Spacebar: Pause/Unpause</li>
                     <li>F Key: Add to Favorites</li>
+                </ul>
+                <h4>Changelog:</h4>
+                <ul>
+                    <li><b>0.3.0</b> (2026-11-21)
+                        <ul>
+                            <li>Fixed images not loading</li>
+                            <li>Defaults to SFW (e926) when not logged in</li>
+                            <li>Fixed download button not working</li>
+                            <li>Removed dependency on corsproxy.io, uses a Cloudflare Worker instead</li>
+                            <li>Adult content toggle is now greyed out if not logged in</li>
+                        </ul>
+                    </li>
                 </ul>
             </div>
         </div>

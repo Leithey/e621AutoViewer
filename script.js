@@ -992,6 +992,7 @@ function loadPreset(index) {
     document.getElementById("blacklist").value = presetSettings.blacklist;
     document.getElementById("whitelist").value = presetSettings.whitelist;
     document.getElementById("adultcontent").checked = presetSettings.adultcontent;
+    if (typeof globalSettings !== 'undefined' && globalSettings) updateAdultContentAvailability();
 
     selectedPreset = index;
 
@@ -1343,6 +1344,27 @@ function toggleFavorite(){
     urlHistory[getHistoryPosInArray()][2] ? removeFavorite() : addFavorite();
 }
 
+// Grey out the "Adult Content" preset option while the user is not logged in,
+// since adult content (e621) is only available with username + API key.
+// The preset's stored value is kept, so it applies again once the user logs in.
+function updateAdultContentAvailability() {
+    const checkbox = document.getElementById("adultcontent");
+    const label = document.getElementById("adultcontentLabel");
+    const tooltip = document.getElementById("adultcontentTooltip");
+    if (!checkbox) return;
+
+    const loggedIn = isUsingAuth();
+    checkbox.disabled = !loggedIn;
+    const container = checkbox.closest(".tooltip");
+    if (container) container.classList.toggle("disabled-option", !loggedIn);
+    if (label) label.classList.toggle("disabled-option", !loggedIn);
+    if (tooltip) {
+        tooltip.textContent = loggedIn
+            ? "If unchecked, only SFW content is displayed"
+            : "Log in (username + API key in Global Settings) to enable adult content";
+    }
+}
+
 function showFaveButton(show){
     showFavButton = show;
     bottomCenterButtons.style.width = show ? "240" : "200";
@@ -1392,6 +1414,7 @@ function loadGlobalSettings() {
     document.getElementById("debugMode").checked = globalSettings.debug;
 
     showFaveButton(isUsingAuth());
+    updateAdultContentAvailability();
     Logger.log("loaded global settings");
 }
 
@@ -1422,6 +1445,7 @@ function saveGlobalSettings() {
 
     localStorage.setItem("globalSettings", globalSettingsJson);
     showFaveButton(isUsingAuth());
+    updateAdultContentAvailability();
 
     // Invalidate query string cache since global settings changed
     invalidateQueryStringCache();

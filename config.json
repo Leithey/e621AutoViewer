@@ -1,6 +1,7 @@
 {
     "url_e621": "https://e621.net",
     "url_e926": "https://e926.net",
+    "download_proxy": "https://e621-autoviewer.leithey.workers.dev/?url=",
     "use_whitelist": 0,
     "refresh_rate": 10000,
     "retry_rate": 100,

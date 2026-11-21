@@ -1278,29 +1278,36 @@ function hideNoImagesError() {
 
 downloadButton.addEventListener('click', () => { downloadImage(); })
 function downloadImage() {
-    const imageUrl = "https://corsproxy.io/?" + getCurrentFileURL();
-    const lastIndex = imageUrl.lastIndexOf("/");
-    const filename = imageUrl.substring(lastIndex + 1);
-    Logger.log(filename);
+    const imageUrl = getCurrentFileURL();
+    if (!imageUrl) return;
+    const filename = imageUrl.substring(imageUrl.lastIndexOf("/") + 1).split("?")[0];
+    Logger.log(`[downloadImage] Downloading ${filename}`);
 
-    // Fetch the image as a Blob
-    fetch(imageUrl)
-        .then(response => response.blob())
+    // e621's static servers send no CORS headers, so the file is fetched through the
+    // download proxy (Cloudflare Worker, see cloudflare-worker/) when one is configured.
+    // Without a proxy, or if it fails, the original file is opened in a new tab to save from there.
+    const proxy = (config && config.download_proxy) ? config.download_proxy : "";
+    const fetchUrl = proxy ? proxy + encodeURIComponent(imageUrl) : imageUrl;
+
+    fetch(fetchUrl)
+        .then(response => {
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            return response.blob();
+        })
         .then(blob => {
-            const reader = new FileReader();
-            reader.onload = () => {
-                const dataUrl = reader.result; // Base64-encoded data URL
-                const link = document.createElement('a');
-                link.href = dataUrl;
-                link.download = filename;
-                document.body.appendChild(link);
-                link.click();
-                document.body.removeChild(link);
-            };
-            reader.readAsDataURL(blob);
+            // Object URLs avoid building a huge base64 string for large files
+            const objectUrl = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = objectUrl;
+            link.download = filename;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            setTimeout(() => URL.revokeObjectURL(objectUrl), 10000);
         })
         .catch(error => {
-            Logger.error('Error fetching image:', error.message);
+            Logger.log(`[downloadImage] Download failed (${error.message}), opening image in a new tab instead`);
+            window.open(imageUrl, '_blank', 'noopener');
         });
 }
 

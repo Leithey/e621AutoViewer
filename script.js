@@ -396,8 +396,14 @@ function invalidateQueryStringCache() {
 }
 
 // Get the base API URL based on adult mode and preset settings
+// e621 (adult) is only used when the user confirmed 18+, the preset allows adult content,
+// AND the user is logged in (username + API key). Otherwise default to SFW e926.
+function useAdultSite() {
+    return adultMode && presetSettings.adultcontent && isUsingAuth();
+}
+
 function getApiBaseUrl() {
-    if (adultMode && presetSettings.adultcontent) {
+    if (useAdultSite()) {
         return config.url_e621;
     } else {
         return config.url_e926;
@@ -556,7 +562,7 @@ async function addFavorite(){
     const queryParams = new URLSearchParams(params).toString();
 
     let url = "";
-    if (adultMode && presetSettings.adultcontent) {
+    if (useAdultSite()) {
         url = `${config.url_e621}/favorites.json?${queryParams}`;
     } else {
         url = `${config.url_e926}/favorites.json?${queryParams}`;
@@ -607,7 +613,7 @@ async function removeFavorite(){
     const queryParams = getCurrentId();
 
     let url = "";
-    if (adultMode && presetSettings.adultcontent) {
+    if (useAdultSite()) {
         url = `${config.url_e621}/favorites/${queryParams}.json`;
     } else {
         url = `${config.url_e926}/favorites/${queryParams}.json`;

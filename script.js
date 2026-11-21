@@ -257,6 +257,35 @@ async function imageLoop(skipNewSearch = false){
     }
 }
 
+// Normalize the posts.json response to the legacy shape used throughout this script.
+// e621 changed its API (late 2026): the response is now a bare array, file info moved to
+// post.files.{meta,original}, score/is_favorited moved to post.stats, and tags became a flat array.
+// This also accepts the old {posts: [...]} format, so it keeps working if the API changes back.
+function normalizePostsResponse(data) {
+    const posts = Array.isArray(data) ? data : (data && Array.isArray(data.posts) ? data.posts : []);
+    return posts.map(post => {
+        if (post.file) return post; // already legacy format
+        const files = post.files || {};
+        const meta = files.meta || {};
+        const original = files.original || {};
+        const stats = post.stats || {};
+        return {
+            ...post,
+            file: {
+                url: original.url || null,
+                ext: meta.ext,
+                size: meta.size,
+                md5: meta.md5,
+                width: original.width,
+                height: original.height
+            },
+            score: stats.score || { up: 0, down: 0, total: 0 },
+            fav_count: stats.fav_count,
+            is_favorited: stats.is_favorited === true
+        };
+    });
+}
+
 // Prefetch the next batch in the background
 async function prefetchNextBatch() {
     // Don't prefetch if already prefetching, paused, or page is hidden
@@ -290,7 +319,7 @@ async function prefetchNextBatch() {
         "tags": queryString,
         "limit": batchSize,
         "page": nextPage,
-        "client": '_client=e621AutoViewer (by Leithey)'
+        "_client": 'e621AutoViewer/1.0 (by Leithey)'
     };
 
     const queryParams = new URLSearchParams(params).toString();
@@ -310,7 +339,7 @@ async function prefetchNextBatch() {
             if (!response.ok) {
                 throw new Error(`HTTP error! status: ${response.status}`);
             }
-            const postData = await response.json();
+            const postData = { posts: normalizePostsResponse(await response.json()) };
 
             // Only store if query hasn't changed and we're not paused
             if (currentBatchQuery === queryString && !paused && !pageIsHidden) {
@@ -377,7 +406,7 @@ function getApiBaseUrl() {
 
 // Build complete API URL for posts endpoint
 function buildPostsApiUrl(queryParams) {
-    return `${getApiBaseUrl()}/posts.json/?${queryParams}`;
+    return `${getApiBaseUrl()}/posts.json?${queryParams}`;
 }
 
 // Build API URL for a specific post
@@ -448,7 +477,7 @@ async function getNewImageUrl(recursionDepth = 0, page = null, batchSize = null)
         "tags": queryString,
         "limit": determinedBatchSize,
         "page": pageToFetch,
-        "client": '_client=e621AutoViewer (by Leithey)'
+        "_client": 'e621AutoViewer/1.0 (by Leithey)'
     }
 
     const queryParams = new URLSearchParams(params).toString();
@@ -467,7 +496,7 @@ async function getNewImageUrl(recursionDepth = 0, page = null, batchSize = null)
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
         }
-        const postData = await response.json();
+        const postData = { posts: normalizePostsResponse(await response.json()) };
         Logger.log(`[getNewImageUrl] Received ${postData.posts.length} posts from API (page ${pageToFetch})`);
 
         if (postData.posts.length <= 0) {
@@ -528,9 +557,9 @@ async function addFavorite(){
 
     let url = "";
     if (adultMode && presetSettings.adultcontent) {
-        url = `${config.url_e621}/favorites.json/?${queryParams}`;
+        url = `${config.url_e621}/favorites.json?${queryParams}`;
     } else {
-        url = `${config.url_e926}/favorites.json/?${queryParams}`;
+        url = `${config.url_e926}/favorites.json?${queryParams}`;
     }
 
     isFavoritingImage = true;
